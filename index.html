@@ -519,7 +519,6 @@ let mario, platforms, enemies, coins, blocks, flag;
 let audioCtx = null;
 let jumpBufferTimer = 0, coyoteTimer = 0;
 let marioScaleX = 1, marioScaleY = 1;
-let enemyAnims = [];
 let marioAnim, goombaAnims;
 
 function initMario() {
@@ -583,6 +582,9 @@ function rectCollide(a, b) {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
+let levelLength = 2800;
+
+function updateMario() {
     let wasGrounded = mario.grounded;
     if (jumpBufferTimer > 0) jumpBufferTimer--;
     if (coyoteTimer > 0) coyoteTimer--;
@@ -657,7 +659,7 @@ function rectCollide(a, b) {
     else if (Math.abs(mario.vx) > 0.5) frame = 1 + (Date.now() % 400 < 200 ? 1 : 0);
     marioAnim.frameIndex = frame;
     marioAnim.flip = mario.facing < 0;
-
+}
 
 function updateEnemies() {
     enemies.forEach((e, i) => {
@@ -672,7 +674,7 @@ function updateEnemies() {
         // Mario collision
         if (rectCollide(mario, e)) {
             if (mario.vy > 0 && mario.y + mario.h - mario.vy <= e.y + 10) {
-                e.alive = false; score += 100; playSound(\'stomp\');
+                e.alive = false; score += 100; playSound('stomp');
                 createParticles('dust', e.x+16, e.y+16, 6, {color:'#888'});
                 createParticles('debris', e.x+16, e.y+16, 4, {color:'#c84c0c'});
                 mario.vy = -8; triggerShake(3, 10); triggerHitStop(6);
@@ -688,7 +690,7 @@ function updateCoins() {
         if (c.collected) return;
         c.bob += 0.1;
         if (rectCollide(mario, c)) {
-            c.collected = true; score += 200; coinCount++; playSound(\'coin\');
+            c.collected = true; score += 200; coinCount++; playSound('coin');
             createParticles('sparkle', c.x+16, c.y+16, 8, {color:'#ffd700'});
             particles.push(new Particle('score', c.x+16, c.y, 0, -2, {text:'+200', life:40}));
         }
@@ -698,8 +700,8 @@ function updateCoins() {
 function die() {
     lives--;
 
-    playSound(\'die\');
-    createParticles('debris', mario.x+16, mario.y+16, 12, {color:'#e52521'});
+        playSound('die');
+        createParticles('debris', mario.x+16, mario.y+16, 12, {color:'#e52521'});
     triggerFlash('rgba(255,0,0,0.4)', 0.4, 300);
     if (lives <= 0) {
         gameState = 'gameover';
@@ -716,8 +718,8 @@ function checkWin() {
         gameState = 'win';
         score += 5000;
 
-        playSound(\'win\');
-        document.getElementById('winScore').textContent = score;
+                playSound('win');
+                document.getElementById('winScore').textContent = score;
         document.getElementById('winScreen').classList.remove('hidden');
         triggerFlash('rgba(255,255,255,0.3)', 0.3, 500);
     }
@@ -768,9 +770,9 @@ function draw() {
     
     // Enemies
     enemies.forEach((e, i) => {
-        if (e.alive && enemyAnims[i]) {
-            enemyAnims[i].update(16);
-            enemyAnims[i].draw(ctx, e.x, e.y, 2);
+        if (e.alive && goombaAnims[i]) {
+            goombaAnims[i].update(16);
+            goombaAnims[i].draw(ctx, e.x, e.y, 2);
         }
     });
     
