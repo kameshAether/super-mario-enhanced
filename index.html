@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Super Mario - Enhanced Graphics</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: linear-gradient(180deg, #5c94fc 0%, #85b5ff 100%);
             overflow: hidden;
-            font-family: Arial, sans-serif;
+            font-family: 'Orbitron', Arial, sans-serif;
             touch-action: none;
             user-select: none;
         }
@@ -92,10 +93,24 @@
         .mbtn:active { background: rgba(255,255,255,0.5); transform: scale(0.9); }
         @media (max-width: 850px) { #mobileControls { display: flex; } }
 
-        #flashOverlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 15; opacity: 0;
+        #soundToggle {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            background: rgba(0,0,0,0.5);
+            color: #fff;
+            font-size: 22px;
+            cursor: pointer;
+            z-index: 11;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.1s;
         }
+        #soundToggle:hover { transform: scale(1.1); }
+        #soundToggle:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
@@ -107,10 +122,10 @@
             <div class="ui-item"><span class="ui-label">LIVES</span><span class="ui-value" id="lives">3</span></div>
         </div>
         <canvas id="gameCanvas" width="800" height="450"></canvas>
-        <canvas id="flashOverlay"></canvas>
+        <button id="soundToggle" onclick="toggleSound()" title="Toggle sound (M)" aria-label="Toggle sound">🔊</button>
         <div id="startScreen" class="screen">
             <h1>SUPER MARIO</h1>
-            <p>Arrow Keys / WASD to Move | Space / W to Jump | P to Pause</p>
+            <p>Arrow Keys / WASD to Move | Space / W to Jump | P to Pause | M for Sound</p>
             <button onclick="startGame()">START GAME</button>
         </div>
         <div id="gameOverScreen" class="screen hidden">
@@ -123,7 +138,7 @@
             <p>Score: <span id="winScore" style="color:#ffcc00;font-size:28px">0</span></p>
             <button onclick="startGame()">PLAY AGAIN</button>
         </div>
-        <div id="pauseOverlay" class="hidden" style="position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:25;font-size:32px;color:#fff;font-weight:bold;text-shadow:2px 2px 0 #000;">PAUSED</div>
+        <div id="pauseScreen" class="screen hidden"><h1 style="color:#ffcc00;">PAUSED</h1><p>Press P to resume</p><button onclick="togglePause()">RESUME</button></div>
         <div id="mobileControls">
             <div class="dpad">
                 <button class="mbtn" ontouchstart="keys.left=true" ontouchend="keys.left=false">◀</button>
@@ -137,10 +152,13 @@
 // ===== CANVAS SETUP =====
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const flashCanvas = document.getElementById('flashOverlay');
-const flashCtx = flashCanvas.getContext('2d');
 canvas.width = 800; canvas.height = 450;
-flashCanvas.width = 800; flashCanvas.height = 450;
+
+function fitCanvas() {
+    const maxW = Math.min(window.innerWidth - 40, 800);
+    canvas.style.width = maxW + 'px';
+}
+window.addEventListener('resize', fitCanvas);
 
 // ===== COLOR PALETTE (16 colors from design spec) =====
 const P = {
@@ -388,6 +406,7 @@ function initAudio() {
 }
 
 function playSound(type) {
+    if (!soundEnabled) return;
     if (!audioCtx) return;
     const now = audioCtx.currentTime;
     const osc = (f, t, d, v = 0.15) => {
@@ -504,19 +523,20 @@ function createParticles(type, x, y, count, opts = {}) {
 // ===== SCREEN SHAKE & EFFECTS =====
 let shake = { mag: 0, dur: 0, frame: 0 };
 let hitStop = 0;
-let flashAlpha = 0;
+let flashState = null;
 
 function triggerShake(mag, dur) { shake = { mag, dur, frame: 0 }; }
 function triggerHitStop(frames) { hitStop = frames; }
 function triggerFlash(color, alpha, duration) {
-    flashAlpha = alpha; flashCtx.fillStyle = color;
-    setTimeout(() => { flashAlpha = 0; }, duration);
+    flashState = { color, alpha };
+    setTimeout(() => { flashState = null; }, duration);
 }
 
 // ===== GAME STATE =====
 let gameState = 'start', score = 0, coinCount = 0, lives = 3, cameraX = 0;
 let mario, platforms, enemies, coins, blocks, flag;
 let audioCtx = null;
+let soundEnabled = true;
 let jumpBufferTimer = 0, coyoteTimer = 0;
 let marioScaleX = 1, marioScaleY = 1;
 let marioAnim, goombaAnims;
@@ -561,6 +581,7 @@ function generateLevel() {
 // ===== INPUT =====
 const keys = { left: false, right: false, jump: false };
 document.addEventListener('keydown', e => {
+    if (gameState === 'gameover' && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); startGame(); return; }
     if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
     if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
     if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === 'z') {
@@ -570,6 +591,7 @@ document.addEventListener('keydown', e => {
         if (gameState === 'start') startGame();
     }
     if (e.key === 'p' || e.key === 'P') togglePause();
+    if (e.key === 'm' || e.key === 'M') toggleSound();
 });
 document.addEventListener('keyup', e => {
     if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
@@ -791,12 +813,13 @@ function draw() {
     
     ctx.restore();
     
-    // Flash overlay
-    if (flashAlpha > 0) {
-        flashCtx.fillStyle = flashCtx.fillStyle.replace(/[\d.]+\)$/, flashAlpha + ')');
-        flashCtx.fillRect(0, 0, 800, 450);
-    } else {
-        flashCtx.clearRect(0, 0, 800, 450);
+    // Flash overlay (drawn directly on main canvas)
+    if (flashState) {
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = flashState.color;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.restore();
     }
     
     // UI update
@@ -824,9 +847,10 @@ function startGame() {
     document.getElementById('startScreen').classList.add('hidden');
     document.getElementById('gameOverScreen').classList.add('hidden');
     document.getElementById('winScreen').classList.add('hidden');
+    document.getElementById('pauseScreen').classList.add('hidden');
     gameState = 'playing'; score = 0; coinCount = 0; lives = 3;
+    fitCanvas();
     initMario();
-
     initAudio(); generateLevel(); particles = [];
     lastTime = performance.now(); requestAnimationFrame(gameLoop);
 }
@@ -834,12 +858,18 @@ function startGame() {
 function togglePause() {
     if (gameState === 'playing') {
         gameState = 'paused';
-        document.getElementById('pauseOverlay').classList.remove('hidden');
+        document.getElementById('pauseScreen').classList.remove('hidden');
     } else if (gameState === 'paused') {
         gameState = 'playing';
-        document.getElementById('pauseOverlay').classList.add('hidden');
+        document.getElementById('pauseScreen').classList.add('hidden');
         lastTime = performance.now(); requestAnimationFrame(gameLoop);
     }
+}
+
+function toggleSound() {
+    soundEnabled = !soundEnabled;
+    const btn = document.getElementById('soundToggle');
+    if (btn) btn.textContent = soundEnabled ? '🔊' : '🔇';
 }
 
 // Initial draw
