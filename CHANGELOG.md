@@ -5,7 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
-## [0.3.0] — 2025-07-04 — Polish Release
+| [Unreleased] - 2026-07-04 — Final Polish |
+|---|---|
+| ### Added |
+| - Meta description and theme-color tags for browser chrome |
+| |
+| --- |
+| |
+| ## [0.3.0] — 2025-07-04 — Polish Release |
 
 ### Added
 - **Orbitron font** — Google Fonts CDN link for the futuristic arcade lettering throughout the UI.
